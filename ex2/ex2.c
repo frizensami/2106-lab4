@@ -43,71 +43,80 @@ unsigned int pOf2Ceiling( unsigned int N );
 unsigned int buddyOf( unsigned int , unsigned int );
 //Return the address of the buddy block, at a particular power of 2
 
+// Checks if the block address is invalid
+int isValidBlock(block* blockToCheck) {
+    return blockToCheck != NULL;
+}
+
+
+// Checks if there is a free block at the level requested
+int isThereFreeBlockAt(int powerOfTwo, block* freeBlockArray[]) {
+    return isValidBlock(freeBlockArray[powerOfTwo]);
+}
 
 // Given the buddy allocation array - allocates a block of the power of two given the starting address
-void createBlock(block freeBlockArray[], unsigned int powerOfTwo, unsigned int startingAddress) {
+void createBlock(block* freeBlockArray[], unsigned int powerOfTwo, unsigned int startingAddress) {
     //printf("Creating block for powerOfTwo: %d and starting addr: %d\n", powerOfTwo, startingAddress);
    // Access the first block in the freeBlockArray level specified
-   block* currentBlock = &freeBlockArray[powerOfTwo];
-
+    printf("Createblock: powerOfTwo %d starting %d\n", powerOfTwo, startingAddress);
+   block* currentBlock = freeBlockArray[powerOfTwo];
+   block* previousBlock = currentBlock;
    // Keep going until we reach an invalid block
    // Assumption - there will always be a last block with a NULL next pointer and INVALID address
-   while (currentBlock->address != INVALID_ADDRESS) {
-       currentBlock = currentBlock->next;
+   while (currentBlock != NULL) {
+        previousBlock = currentBlock;
+        currentBlock = currentBlock->next;
    }
 
    // We have reached an allocatable block
    // Set the correct starting address
+   currentBlock = (block*) malloc(sizeof(block));
    currentBlock->address = startingAddress;
+   currentBlock->next = NULL;
 
-   // Create a new dummy block
-   block* endBlock = (block*) malloc(sizeof(block));
-   endBlock->address = INVALID_ADDRESS;
-   endBlock->next = NULL;
 
-   // Add it to the end
-   currentBlock->next = endBlock;
+   printf("Allocated currentBlock\n");
+
+   if (previousBlock != NULL) {
+        // Set the previous block to point to us if we have a previous block.
+        previousBlock->next = currentBlock;
+   } else {
+        // Else - set the head of the free block array to this block
+        freeBlockArray[powerOfTwo] = currentBlock;
+   }
+
+   printf("Set previousBlock\n");
 }
 
 void printBuddyArrayRow(block* buddyRow) {
     // If the first element is invalid, print EMPTY
-    if (buddyRow->address == INVALID_ADDRESS) {
+    if (!isValidBlock(buddyRow)) {
         printf("EMPTY");
     } else {
         // Print every block address
-        while (buddyRow->address != INVALID_ADDRESS) {
+        while (buddyRow != NULL) {
             printf("[%d] ", buddyRow->address);
             buddyRow = buddyRow->next;
         }
     }
 }
 
-void printBuddyArray(block freeBlockArray[], int numElements) {
+void printBuddyArray(block* freeBlockArray[], int numElements) {
     for (int i = numElements - 1; i >= 0; i--) {
         printf("A[%d]: ", i);
-        printBuddyArrayRow(&freeBlockArray[i]);
+        printBuddyArrayRow(freeBlockArray[i]);
         printf("\n");
     }
 
 }
 
-// Checks if the block address is invalid
-int isValidBlock(block* blockToCheck) {
-    return blockToCheck->address != INVALID_ADDRESS;
-}
-
-
-// Checks if there is a free block at the level requested
-int isThereFreeBlockAt(int powerOfTwo, block freeBlockArray[]) {
-    return isValidBlock(&freeBlockArray[powerOfTwo]);
-}
 
 // Assumes there is a block here and it is splittable
-void splitBlockAt(unsigned powerOfTwoToSplit, block freeBlockArray[]) {
+void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
     printf("Splitting block at %d, to move down to location %d\n", powerOfTwoToSplit, powerOfTwoToSplit - 1);
 
     // Get the first block at that power of two
-    block* blockToSplit = &freeBlockArray[powerOfTwoToSplit];
+    block* blockToSplit = freeBlockArray[powerOfTwoToSplit];
 
     // Print the buddy's value, it's -1 because we're finding the buddy address at a lower power
     unsigned int buddyAddress = buddyOf(blockToSplit->address, powerOfTwoToSplit - 1);
@@ -115,7 +124,7 @@ void splitBlockAt(unsigned powerOfTwoToSplit, block freeBlockArray[]) {
 
 }
 
-int splitBlocksFor(unsigned int powerOfTwoToAllocate, block freeBlockArray[], unsigned int largestAllocSize) {
+int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], unsigned int largestAllocSize) {
     // If we've exceeded the largest allocatable size, return -1;
     if (powerOfTwoToAllocate >= largestAllocSize) {
         return -1;
@@ -145,7 +154,7 @@ int splitBlocksFor(unsigned int powerOfTwoToAllocate, block freeBlockArray[], un
 }
 
 
-int doAllocate(int requestType, int size, block freeBlockArray[], block* allocatedBlockList,
+int doAllocate(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
         unsigned int smallestAllocSize, unsigned int largestAllocSize ) {
     if (size <= 0) return -1;
     /*
@@ -192,7 +201,7 @@ int doAllocate(int requestType, int size, block freeBlockArray[], block* allocat
 }
 
 
-int dispatchRequest(int requestType, int size, block freeBlockArray[], block* allocatedBlockList,
+int dispatchRequest(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
         unsigned int smallestAllocSize, unsigned int largestAllocSize) {
     if (requestType == ALLOCATE) {
         return doAllocate(requestType, size, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
@@ -218,15 +227,15 @@ int main(int argc, char** argv)
     scanf("%d", &largestAllocSize);
 
     // Array of blocks - each one can be null
-    block freeBlockArray[largestAllocSize + 1];
+    block* freeBlockArray[largestAllocSize + 1];
 
     // Array of allocated blocks
     block* allocatedBlockList = NULL;
 
-    // Initialize all blocks to sentinel values
+
+    // Initialize all level LL head pointers to NULL
     for (int i = 0; i < largestAllocSize + 1; i++) {
-        freeBlockArray[i].address = INVALID_ADDRESS;
-        freeBlockArray[i].next = NULL;
+        freeBlockArray[i] = NULL;
     }
 
     // Print wasted space
