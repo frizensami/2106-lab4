@@ -1,0 +1,56 @@
+24
+A[8]: [0] 
+A[7]: EMPTY
+A[6]: EMPTY
+A[5]: EMPTY
+A[4]: EMPTY
+A[3]: EMPTY
+A[2]: EMPTY
+A[1]: EMPTY
+A[0]: EMPTY
+Allocated: None
+
+0
+A[8]: EMPTY
+A[7]: [128] 
+A[6]: [64] 
+A[5]: EMPTY
+A[4]: EMPTY
+A[3]: EMPTY
+A[2]: EMPTY
+A[1]: EMPTY
+A[0]: EMPTY
+Allocated: [0(64|64)]
+64
+A[8]: EMPTY
+A[7]: [128] 
+A[6]: EMPTY
+A[5]: [96] 
+A[4]: EMPTY
+A[3]: EMPTY
+A[2]: EMPTY
+A[1]: EMPTY
+A[0]: EMPTY
+Allocated: [0(64|64)][64(30|32)]
+128
+A[8]: EMPTY
+A[7]: EMPTY
+A[6]: EMPTY
+A[5]: [96] 
+A[4]: EMPTY
+A[3]: EMPTY
+A[2]: EMPTY
+A[1]: EMPTY
+A[0]: EMPTY
+Allocated: [0(64|64)][64(30|32)][128(120|128)]
+-1
+A[8]: EMPTY
+A[7]: EMPTY
+A[6]: EMPTY
+A[5]: [96] 
+A[4]: EMPTY
+A[3]: EMPTY
+A[2]: EMPTY
+A[1]: EMPTY
+A[0]: EMPTY
+Allocated: [0(64|64)][64(30|32)][128(120|128)]
