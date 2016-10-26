@@ -18,7 +18,8 @@ lab machine (Linux on x86)
 #define ALLOCATE 1
 #define DEALLOCATE 2
 
-#define INVALID_ADDRESS UINT_MAX
+#define TRUE 1
+#define FALSE 0
 
 //Declaration of a Linked List Node
 //  for handling partition information
@@ -28,6 +29,7 @@ lab machine (Linux on x86)
 typedef struct BLOCKSTRUCT{
     unsigned int address;       //starting address
     struct BLOCKSTRUCT* next;
+    unsigned int sizeInUse;
 } block;
 
 //For easy access of power of 2s. POWEROF2[IDX] gives 2^IDX
@@ -54,38 +56,29 @@ int isThereFreeBlockAt(int powerOfTwo, block* freeBlockArray[]) {
     return isValidBlock(freeBlockArray[powerOfTwo]);
 }
 
+void insertAtBackOf(block** blockListPtr, block* blockToInsert) {
+    block* blockList = *blockListPtr;
+    if (blockList == NULL) {
+        *blockListPtr = blockToInsert;
+    } else {
+        block* listIterator = blockList;
+        while (listIterator->next != NULL) {
+            listIterator = listIterator->next;
+        }
+
+        listIterator->next = blockToInsert;
+    }
+}
+
 // Given the buddy allocation array - allocates a block of the power of two given the starting address
 void createBlock(block* freeBlockArray[], unsigned int powerOfTwo, unsigned int startingAddress) {
-    //printf("Creating block for powerOfTwo: %d and starting addr: %d\n", powerOfTwo, startingAddress);
-   // Access the first block in the freeBlockArray level specified
-    printf("Createblock: powerOfTwo %d starting %d\n", powerOfTwo, startingAddress);
-   block* currentBlock = freeBlockArray[powerOfTwo];
-   block* previousBlock = currentBlock;
-   // Keep going until we reach an invalid block
-   // Assumption - there will always be a last block with a NULL next pointer and INVALID address
-   while (currentBlock != NULL) {
-        previousBlock = currentBlock;
-        currentBlock = currentBlock->next;
-   }
-
    // We have reached an allocatable block
    // Set the correct starting address
-   currentBlock = (block*) malloc(sizeof(block));
-   currentBlock->address = startingAddress;
-   currentBlock->next = NULL;
+   block* newBlock = (block*) malloc(sizeof(block));
+   newBlock->address = startingAddress;
+   newBlock->next = NULL;
 
-
-   printf("Allocated currentBlock\n");
-
-   if (previousBlock != NULL) {
-        // Set the previous block to point to us if we have a previous block.
-        previousBlock->next = currentBlock;
-   } else {
-        // Else - set the head of the free block array to this block
-        freeBlockArray[powerOfTwo] = currentBlock;
-   }
-
-   printf("Set previousBlock\n");
+   insertAtBackOf(&freeBlockArray[powerOfTwo], newBlock);
 }
 
 void printBuddyArrayRow(block* buddyRow) {
@@ -122,12 +115,26 @@ void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
     unsigned int buddyAddress = buddyOf(blockToSplit->address, powerOfTwoToSplit - 1);
     printf("Buddy address for new buddy block = %d\n", buddyAddress);
 
+    // Point the free block array at that power to the next block of the block we are splitting
+    freeBlockArray[powerOfTwoToSplit] = blockToSplit->next;
+
+    // Create the buddy block
+    block* blockToSplitBuddy = (block*) malloc(sizeof(block));
+    blockToSplitBuddy->address = buddyAddress;
+    blockToSplitBuddy->next = NULL;
+
+    // Point the block that we split to its buddy block
+    blockToSplit->next = blockToSplitBuddy;
+
+    // Point the lower free block array power to the block we just split
+    freeBlockArray[powerOfTwoToSplit - 1] = blockToSplit;
 }
 
 int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], unsigned int largestAllocSize) {
     // If we've exceeded the largest allocatable size, return -1;
     if (powerOfTwoToAllocate >= largestAllocSize) {
-        return -1;
+        printf("Power of two to allocate: %d - exceeds largest allocate size: %d", powerOfTwoToAllocate, largestAllocSize);
+        return FALSE;
     }
 
     // Otherwise, try to split the next highest level
@@ -135,12 +142,10 @@ int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], u
         // No free block directly above.
         // We need to try to get a free block at the next highest level
         int success = splitBlocksFor(powerOfTwoToAllocate + 1, freeBlockArray, largestAllocSize);
-
         if (!success) {
             // We couldn't split a block at the higher level - we can't recover from this
             printf("Cannot allocate block at: %d - allocation failure!\n", powerOfTwoToAllocate + 1);
-
-            return -1;
+            return FALSE;
         }
 
     }
@@ -150,7 +155,7 @@ int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], u
     // Actually split the block
     splitBlockAt(powerOfTwoToAllocate+1, freeBlockArray);
 
-    return -1; //for now
+    return TRUE;
 }
 
 
@@ -175,7 +180,7 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
     // Check if the block request is larger than possible
     if (powerOfTwoToAllocate > largestAllocSize) {
         printf("No valid block of size 2^%d, too large to accomodate request!\n", powerOfTwoToAllocate);
-        return -1;
+        return FALSE;
     }
 
     // See if we need to split blocks to get a free block at this level
@@ -186,14 +191,36 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
         int success = splitBlocksFor(powerOfTwoToAllocate, freeBlockArray, largestAllocSize);
 
         if (!success) {
-            return -1;
+            return FALSE;
         }
     }
 
-    // Otherwise: can allocate
-    printf("Valid block of size 2^%d\n", powerOfTwoToAllocate);
 
-    return 0;
+    printf("Printing new freeBlockArray\n");
+    printBuddyArray(freeBlockArray, largestAllocSize + 1);
+
+
+    // Need to move block out out of this level and into the free array
+    printf("Valid block of size 2^%d. Allocating.\n", powerOfTwoToAllocate);
+
+    // Indicate how much is used
+    block* blockToAllocate = freeBlockArray[powerOfTwoToAllocate];
+    blockToAllocate->sizeInUse = size;
+
+    // put this block into the allocated list
+    insertAtBackOf(&allocatedBlockList, blockToAllocate);
+
+    // Remove it from the free list
+    freeBlockArray[powerOfTwoToAllocate] = blockToAllocate->next;
+    blockToAllocate->next = NULL;
+
+    // Print the allocated list
+    printf("New Free Block List: \n");
+    printBuddyArray(freeBlockArray, largestAllocSize+1);
+    printf("Allocated list: \n");
+    printBuddyArrayRow(allocatedBlockList);
+
+    return TRUE;
 
 
 
@@ -209,7 +236,7 @@ int dispatchRequest(int requestType, int size, block* freeBlockArray[], block* a
         return doDeallocate(requestType, size, freeBlockArray);
     } */else {
         printf ("Incorrect requestType %d received\n", requestType);
-        return -1;
+        return FALSE;
     }
 }
 
