@@ -27,7 +27,7 @@ lab machine (Linux on x86)
 //Note: You are free to rewrite / redesign in anyway
 
 typedef struct BLOCKSTRUCT{
-    unsigned int address;       //starting address
+    int address;       //starting address
     struct BLOCKSTRUCT* next;
     unsigned int sizeInUse;
 } block;
@@ -133,7 +133,7 @@ void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
 int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], unsigned int largestAllocSize) {
     // If we've exceeded the largest allocatable size, return -1;
     if (powerOfTwoToAllocate >= largestAllocSize) {
-        printf("Power of two to allocate: %d - exceeds largest allocate size: %d", powerOfTwoToAllocate, largestAllocSize);
+        printf("Power of two to split: %d - exceeds largest allocate size: %d", powerOfTwoToAllocate, largestAllocSize);
         return FALSE;
     }
 
@@ -180,7 +180,7 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
     // Check if the block request is larger than possible
     if (powerOfTwoToAllocate > largestAllocSize) {
         printf("No valid block of size 2^%d, too large to accomodate request!\n", powerOfTwoToAllocate);
-        return FALSE;
+        return -1;
     }
 
     // See if we need to split blocks to get a free block at this level
@@ -191,7 +191,7 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
         int success = splitBlocksFor(powerOfTwoToAllocate, freeBlockArray, largestAllocSize);
 
         if (!success) {
-            return FALSE;
+            return -1;
         }
     }
 
@@ -220,7 +220,7 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
     printf("Allocated list: \n");
     printBuddyArrayRow(allocatedBlockList);
 
-    return TRUE;
+    return blockToAllocate->address;
 
 
 
@@ -244,7 +244,7 @@ int dispatchRequest(int requestType, int size, block* freeBlockArray[], block* a
 int main(int argc, char** argv)
 {
 
-    unsigned int initMemSize, smallestAllocSize, largestAllocSize;
+    int initMemSize, smallestAllocSize, largestAllocSize;
 
     //printf("Initial Free Size (MS): ");
     scanf("%d", &initMemSize); // 0 < MS <= 4096
@@ -266,8 +266,8 @@ int main(int argc, char** argv)
     }
 
     // Print wasted space
-    unsigned int wastedSize = initMemSize;
-    unsigned int currentAllocSize = largestAllocSize;
+    int wastedSize = initMemSize;
+    int currentAllocSize = largestAllocSize;
 
     /* INITIAL ALLOCATION ALGORITHM
 
