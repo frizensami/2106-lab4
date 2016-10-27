@@ -31,7 +31,7 @@ lab machine (Linux on x86)
 typedef struct BLOCKSTRUCT{
     int address;       //starting address
     struct BLOCKSTRUCT* next;
-     int sizeInUse;
+    unsigned int sizeInUse;
 } block;
 
 //For easy access of power of 2s. POWEROF2[IDX] gives 2^IDX
@@ -40,11 +40,11 @@ int POWEROF2[] = {1, 2, 4, 8, 16, 32, 64,
                     128, 256, 512, 1024, 2048, 4096};
 
 //Helper Functions written for you
- int pOf2Ceiling(  int N );
+unsigned int pOf2Ceiling( unsigned int N );
 // Find the smallest S, such that 2&S >= N
 //   S is returned
 
- int buddyOf(  int ,  int );
+unsigned int buddyOf( unsigned int , unsigned int );
 //Return the address of the buddy block, at a particular power of 2
 
 // Checks if the block address is invalid
@@ -73,7 +73,7 @@ void insertAtBackOf(block** blockListPtr, block* blockToInsert) {
 }
 
 // Given the buddy allocation array - allocates a block of the power of two given the starting address
-void createBlock(block* freeBlockArray[],  int powerOfTwo,  int startingAddress) {
+void createBlock(block* freeBlockArray[], unsigned int powerOfTwo, unsigned int startingAddress) {
    // We have reached an allocatable block
    // Set the correct starting address
    block* newBlock = (block*) malloc(sizeof(block));
@@ -107,7 +107,7 @@ void printBuddyArray(block* freeBlockArray[], int numElements) {
 
 
 // Assumes there is a block here and it is splittable
-void splitBlockAt( powerOfTwoToSplit, block* freeBlockArray[]) {
+void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
 #ifdef DEBUG
     printf("Splitting block at %d, to move down to location %d\n", powerOfTwoToSplit, powerOfTwoToSplit - 1);
 #endif
@@ -115,7 +115,7 @@ void splitBlockAt( powerOfTwoToSplit, block* freeBlockArray[]) {
     block* blockToSplit = freeBlockArray[powerOfTwoToSplit];
 
     // Print the buddy's value, it's -1 because we're finding the buddy address at a lower power
-     int buddyAddress = buddyOf(blockToSplit->address, powerOfTwoToSplit - 1);
+    unsigned int buddyAddress = buddyOf(blockToSplit->address, powerOfTwoToSplit - 1);
 
 #ifdef DEBUG
     printf("Buddy address for new buddy block = %d\n", buddyAddress);
@@ -136,7 +136,7 @@ void splitBlockAt( powerOfTwoToSplit, block* freeBlockArray[]) {
     freeBlockArray[powerOfTwoToSplit - 1] = blockToSplit;
 }
 
-int splitBlocksFor( int powerOfTwoToAllocate, block* freeBlockArray[],  int largestAllocSize) {
+int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], unsigned int largestAllocSize) {
     // If we've exceeded the largest allocatable size, return -1;
     if (powerOfTwoToAllocate >= largestAllocSize) {
 #ifdef DEBUG
@@ -172,7 +172,7 @@ int splitBlocksFor( int powerOfTwoToAllocate, block* freeBlockArray[],  int larg
 
 
 int doAllocate(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
-         int smallestAllocSize,  int largestAllocSize ) {
+        unsigned int smallestAllocSize, unsigned int largestAllocSize ) {
     if (size <= 0) return -1;
     /*
        ALLOCATION ALGORITHM
@@ -186,7 +186,7 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
          - Do 2a
     */
 
-     int powerOfTwoToAllocate = pOf2Ceiling(size);
+    unsigned int powerOfTwoToAllocate = pOf2Ceiling(size);
 
 
     // Check if the block request is larger than possible
@@ -250,11 +250,12 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
 
 
 int doDeallocate(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
-         int smallestAllocSize,  int largestAllocSize ) {
+        unsigned int smallestAllocSize, unsigned int largestAllocSize ) {
+
 }
 
 int dispatchRequest(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
-         int smallestAllocSize,  int largestAllocSize) {
+        unsigned int smallestAllocSize, unsigned int largestAllocSize) {
     if (requestType == ALLOCATE) {
         return doAllocate(requestType, size, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
     } else if (requestType == DEALLOCATE) {
@@ -345,9 +346,9 @@ int main(int argc, char** argv)
     return 0;
 }
 
- int pOf2Ceiling(  int N )
+unsigned int pOf2Ceiling( unsigned int N )
 {
-     int s = 0, pOf2 = 1;
+    unsigned int s = 0, pOf2 = 1;
 
     while( pOf2 < N){
         pOf2 <<= 1;
@@ -357,10 +358,10 @@ int main(int argc, char** argv)
     return s;
 }
 
- int buddyOf(  int addr,  int S )
+unsigned int buddyOf( unsigned int addr, unsigned int S )
 {
-     int mask = 0xFFFFFFFF << S;
-     int buddyBit = 0x0001 << S;
+    unsigned int mask = 0xFFFFFFFF << S;
+    unsigned int buddyBit = 0x0001 << S;
 
     return (addr & mask) ^ buddyBit;
 }
