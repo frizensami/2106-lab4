@@ -21,6 +21,8 @@ lab machine (Linux on x86)
 #define TRUE 1
 #define FALSE 0
 
+//#define DEBUG
+
 //Declaration of a Linked List Node
 //  for handling partition information
 
@@ -106,14 +108,18 @@ void printBuddyArray(block* freeBlockArray[], int numElements) {
 
 // Assumes there is a block here and it is splittable
 void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
+#ifdef DEBUG
     printf("Splitting block at %d, to move down to location %d\n", powerOfTwoToSplit, powerOfTwoToSplit - 1);
-
+#endif
     // Get the first block at that power of two
     block* blockToSplit = freeBlockArray[powerOfTwoToSplit];
 
     // Print the buddy's value, it's -1 because we're finding the buddy address at a lower power
     unsigned int buddyAddress = buddyOf(blockToSplit->address, powerOfTwoToSplit - 1);
+
+#ifdef DEBUG
     printf("Buddy address for new buddy block = %d\n", buddyAddress);
+#endif
 
     // Point the free block array at that power to the next block of the block we are splitting
     freeBlockArray[powerOfTwoToSplit] = blockToSplit->next;
@@ -133,7 +139,9 @@ void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
 int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], unsigned int largestAllocSize) {
     // If we've exceeded the largest allocatable size, return -1;
     if (powerOfTwoToAllocate >= largestAllocSize) {
+#ifdef DEBUG
         printf("Power of two to split: %d - exceeds largest allocate size: %d", powerOfTwoToAllocate, largestAllocSize);
+#endif
         return FALSE;
     }
 
@@ -144,14 +152,18 @@ int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], u
         int success = splitBlocksFor(powerOfTwoToAllocate + 1, freeBlockArray, largestAllocSize);
         if (!success) {
             // We couldn't split a block at the higher level - we can't recover from this
+#ifdef DEBUG
             printf("Cannot allocate block at: %d - allocation failure!\n", powerOfTwoToAllocate + 1);
+#endif
             return FALSE;
         }
 
     }
 
     // If we have reached here - we definitely have a block at the next higher level we can split
+#ifdef DEBUG
     printf("We can split block at level: %d\n", powerOfTwoToAllocate + 1);
+#endif
     // Actually split the block
     splitBlockAt(powerOfTwoToAllocate+1, freeBlockArray);
 
@@ -179,13 +191,17 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
 
     // Check if the block request is larger than possible
     if (powerOfTwoToAllocate > largestAllocSize) {
+#ifdef DEBUG
         printf("No valid block of size 2^%d, too large to accomodate request!\n", powerOfTwoToAllocate);
+#endif
         return -1;
     }
 
     // See if we need to split blocks to get a free block at this level
     if (!isThereFreeBlockAt(powerOfTwoToAllocate, freeBlockArray)) {
+#ifdef DEBUG
         printf("No valid block of size 2^%d yet - splitting blocks above!\n", powerOfTwoToAllocate);
+#endif
 
         // Recursively split higher blocks.
         int success = splitBlocksFor(powerOfTwoToAllocate, freeBlockArray, largestAllocSize);
@@ -195,13 +211,16 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
         }
     }
 
-
+#ifdef DEBUG
     printf("Printing new freeBlockArray\n");
     printBuddyArray(freeBlockArray, largestAllocSize + 1);
 
+#endif
 
     // Need to move block out out of this level and into the free array
+#ifdef DEBUG
     printf("Valid block of size 2^%d. Allocating.\n", powerOfTwoToAllocate);
+#endif
 
     // Indicate how much is used
     block* blockToAllocate = freeBlockArray[powerOfTwoToAllocate];
@@ -215,10 +234,12 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
     blockToAllocate->next = NULL;
 
     // Print the allocated list
+#ifdef DEBUG
     printf("New Free Block List: \n");
     printBuddyArray(freeBlockArray, largestAllocSize+1);
     printf("Allocated list: \n");
     printBuddyArrayRow(allocatedBlockList);
+#endif
 
     return blockToAllocate->address;
 
@@ -296,8 +317,10 @@ int main(int argc, char** argv)
     // Wasted size
     printf("%d\n", wastedSize);
 
+#ifdef DEBUG
     //Print out the arrays
     printBuddyArray(freeBlockArray, largestAllocSize + 1);
+#endif
 
     // Ask for total number of requests
     int totalRequests;
@@ -308,7 +331,11 @@ int main(int argc, char** argv)
         int requestType, size, returnVal;
         scanf("%d %d", &requestType, &size);
         returnVal = dispatchRequest(requestType, size, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
+#ifdef DEBUG
         printf("Return value: %d\n", returnVal);
+#else
+        printf("%d\n", returnVal);
+#endif
     }
 
     return 0;
