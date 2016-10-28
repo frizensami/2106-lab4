@@ -21,6 +21,10 @@ lab machine (Linux on x86)
 #define TRUE 1
 #define FALSE 0
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
+//#define PRINTAFTERREQ
+
 //#define DEBUG
 
 //Declaration of a Linked List Node
@@ -32,6 +36,7 @@ typedef struct BLOCKSTRUCT{
     int address;       //starting address
     struct BLOCKSTRUCT* next;
     unsigned int sizeInUse;
+    unsigned int size;
 } block;
 
 //For easy access of power of 2s. POWEROF2[IDX] gives 2^IDX
@@ -52,36 +57,10 @@ int isValidBlock(block* blockToCheck) {
     return blockToCheck != NULL;
 }
 
-
-// Checks if there is a free block at the level requested
-int isThereFreeBlockAt(int powerOfTwo, block* freeBlockArray[]) {
-    return isValidBlock(freeBlockArray[powerOfTwo]);
+void printBlock(block* blk) {
+    printf("[a: %d| nxt: %p | inuse: %d | size: %d]", blk->address, blk->next, blk->sizeInUse, blk->size);
 }
 
-void insertAtBackOf(block** blockListPtr, block* blockToInsert) {
-    block* blockList = *blockListPtr;
-    if (blockList == NULL) {
-        *blockListPtr = blockToInsert;
-    } else {
-        block* listIterator = blockList;
-        while (listIterator->next != NULL) {
-            listIterator = listIterator->next;
-        }
-
-        listIterator->next = blockToInsert;
-    }
-}
-
-// Given the buddy allocation array - allocates a block of the power of two given the starting address
-void createBlock(block* freeBlockArray[], unsigned int powerOfTwo, unsigned int startingAddress) {
-   // We have reached an allocatable block
-   // Set the correct starting address
-   block* newBlock = (block*) malloc(sizeof(block));
-   newBlock->address = startingAddress;
-   newBlock->next = NULL;
-
-   insertAtBackOf(&freeBlockArray[powerOfTwo], newBlock);
-}
 
 void printBuddyArrayRow(block* buddyRow) {
     // If the first element is invalid, print EMPTY
@@ -90,7 +69,11 @@ void printBuddyArrayRow(block* buddyRow) {
     } else {
         // Print every block address
         while (buddyRow != NULL) {
+#ifdef DEBUG
+            printBlock(buddyRow);
+#else
             printf("[%d] ", buddyRow->address);
+#endif
             buddyRow = buddyRow->next;
         }
     }
@@ -105,6 +88,98 @@ void printBuddyArray(block* freeBlockArray[], int numElements) {
 
 }
 
+void printStats(block* freeBlockArray[], int numElements, block* allocatedBlockList) {
+    // Find the total memory in use
+    int inUse = 0;
+    int fragmentation = 0;
+    int freeSpace = 0;
+
+    block* allocatedIterator = allocatedBlockList;
+    while (allocatedIterator != NULL) {
+        inUse += POWEROF2[allocatedIterator->size];
+        fragmentation = POWEROF2[allocatedIterator->size] - allocatedIterator->sizeInUse;
+        allocatedIterator = allocatedIterator->next;
+    }
+
+    for (int i = numElements - 1; i >= 0; i--) {
+        block* freeBlockRowIterator = freeBlockArray[i];
+        while (freeBlockRowIterator != NULL) {
+            freeSpace += POWEROF2[freeBlockRowIterator->size];
+            freeBlockRowIterator = freeBlockRowIterator->next;
+        }
+
+    }
+
+    printf("%d\n%d\n%d\n", inUse, freeSpace, fragmentation);
+
+
+}
+
+
+// Checks if there is a free block at the level requested
+int isThereFreeBlockAt(int powerOfTwo, block* freeBlockArray[]) {
+    return isValidBlock(freeBlockArray[powerOfTwo]);
+}
+
+void insertAtBackOf(block** blockListPtr, block* blockToInsert) {
+    block* blockList = *blockListPtr;
+
+    if (blockList == NULL) {
+        *blockListPtr = blockToInsert;
+    } else {
+        block* listIterator = blockList;
+        while (listIterator->next != NULL) {
+            listIterator = listIterator->next;
+        }
+
+        listIterator->next = blockToInsert;
+    }
+
+}
+
+block* findAndRemoveBlockWithAddress(block** allocatedBlockList, unsigned int startingAddress) {
+    block* allocatedHead = *allocatedBlockList;
+    if (allocatedHead == NULL) {
+        return NULL;
+    } else if (allocatedHead->address == startingAddress) {
+        // if the head of the list is the actual block we want - need to set the allocated
+        // block list to nil
+        *allocatedBlockList = allocatedHead->next;
+        return allocatedHead;
+    } else {
+        block* previousBlock = allocatedHead;
+
+        while(allocatedHead != NULL) {
+            if (allocatedHead->address == startingAddress) {
+                // found it
+                // attach previous to our next, clear our pointer
+                previousBlock->next = allocatedHead->next;
+                allocatedHead->next = NULL;
+
+                return allocatedHead;
+            } else {
+                previousBlock = allocatedHead;
+                allocatedHead = allocatedHead->next;
+            }
+        }
+
+        // Didn't find anything
+        return NULL;
+    }
+}
+
+// Given the buddy allocation array - allocates a block of the power of two given the starting address
+void createBlock(block* freeBlockArray[], unsigned int powerOfTwo, unsigned int startingAddress) {
+   // We have reached an allocatable block
+   // Set the correct starting address
+   block* newBlock = (block*) malloc(sizeof(block));
+   newBlock->address = startingAddress;
+   newBlock->next = NULL;
+   newBlock->size = powerOfTwo;
+   newBlock->sizeInUse = 0;
+
+   insertAtBackOf(&freeBlockArray[powerOfTwo], newBlock);
+}
 
 // Assumes there is a block here and it is splittable
 void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
@@ -128,9 +203,12 @@ void splitBlockAt(unsigned powerOfTwoToSplit, block* freeBlockArray[]) {
     block* blockToSplitBuddy = (block*) malloc(sizeof(block));
     blockToSplitBuddy->address = buddyAddress;
     blockToSplitBuddy->next = NULL;
+    blockToSplitBuddy->sizeInUse = 0;
+    blockToSplitBuddy->size = blockToSplit->size - 1;
 
     // Point the block that we split to its buddy block
     blockToSplit->next = blockToSplitBuddy;
+    blockToSplit->size -= 1;
 
     // Point the lower free block array power to the block we just split
     freeBlockArray[powerOfTwoToSplit - 1] = blockToSplit;
@@ -171,8 +249,11 @@ int splitBlocksFor(unsigned int powerOfTwoToAllocate, block* freeBlockArray[], u
 }
 
 
-int doAllocate(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
+int doAllocate(int size, block* freeBlockArray[], block** allocatedBlockList,
         unsigned int smallestAllocSize, unsigned int largestAllocSize ) {
+#ifdef DEBUG
+    printf("Received request to allocate of size: %d\n", size);
+#endif
     if (size <= 0) return -1;
     /*
        ALLOCATION ALGORITHM
@@ -224,21 +305,24 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
 
     // Indicate how much is used
     block* blockToAllocate = freeBlockArray[powerOfTwoToAllocate];
+
+    // Remove it from the free list (i.e. point the head of this power to the block's next)
+    freeBlockArray[powerOfTwoToAllocate] = blockToAllocate->next;
+
+    // Set certain values for the block to allocate
+    blockToAllocate->next = NULL;
     blockToAllocate->sizeInUse = size;
 
     // put this block into the allocated list
-    insertAtBackOf(&allocatedBlockList, blockToAllocate);
+    insertAtBackOf(allocatedBlockList, blockToAllocate);
 
-    // Remove it from the free list
-    freeBlockArray[powerOfTwoToAllocate] = blockToAllocate->next;
-    blockToAllocate->next = NULL;
 
     // Print the allocated list
 #ifdef DEBUG
     printf("New Free Block List: \n");
     printBuddyArray(freeBlockArray, largestAllocSize+1);
     printf("Allocated list: \n");
-    printBuddyArrayRow(allocatedBlockList);
+    printBuddyArrayRow(*allocatedBlockList);
 #endif
 
     return blockToAllocate->address;
@@ -249,17 +333,88 @@ int doAllocate(int requestType, int size, block* freeBlockArray[], block* alloca
 }
 
 
-int doDeallocate(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
+int doDeallocate(unsigned int startingAddress, block* freeBlockArray[], block** allocatedBlockList,
         unsigned int smallestAllocSize, unsigned int largestAllocSize ) {
+#ifdef DEBUG
+    printf("Received DEALLOCATE request for starting addr: %d\n", startingAddress);
+#endif
+    /*
+        DEALLOCATION ALGORITHM:
+        1. Check allocatedBlockList for a block with the required starting address
+        1a. If there is no such block - print "failed"
+        1b. Otherwise: move the block back to the correct level and merge with buddy block if needed
+    */
+    block* foundBlock = findAndRemoveBlockWithAddress(allocatedBlockList, startingAddress);
+    if (foundBlock == NULL) {
+        return FALSE;
+    }
 
+    // We've found the block
+    // Check if its buddy exists at the appropriate level
+    unsigned int buddyAddress = buddyOf(foundBlock->address, foundBlock->size);
+
+#ifdef DEBUG
+    printf("Buddy address to check %d\n", buddyAddress);
+#endif
+
+    // If we SHOULD be even finding a buddy block (we have some levels above us`)
+    if (foundBlock->size < largestAllocSize) {
+        block* buddyBlock = findAndRemoveBlockWithAddress(&freeBlockArray[foundBlock->size], buddyAddress);
+
+
+
+        if (buddyBlock != NULL) {
+            // Have a buddy - need to merge
+            // Reuse the found block
+            // Increase the apparent size of the block
+            foundBlock->address = MIN(foundBlock->address, buddyBlock->address);
+            foundBlock->next = NULL;
+            foundBlock->sizeInUse = 0;
+            foundBlock->size = foundBlock->size + 1;
+
+            // Release space for the buddy
+            free(buddyBlock);
+
+            // Put the foundBlock back into the allocatedBlockList so that we can recursively do this
+            insertAtBackOf(allocatedBlockList, foundBlock);
+
+            // Run this function again
+            return doDeallocate(foundBlock->address, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
+
+        }
+    }
+
+
+    // no buddy or shouldn't be finding buddy
+    foundBlock->next = NULL;
+    insertAtBackOf(&freeBlockArray[foundBlock->size], foundBlock);
+    return TRUE;
 }
 
-int dispatchRequest(int requestType, int size, block* freeBlockArray[], block* allocatedBlockList,
+int dispatchRequest(int requestType, int argument, block* freeBlockArray[], block** allocatedBlockList,
         unsigned int smallestAllocSize, unsigned int largestAllocSize) {
     if (requestType == ALLOCATE) {
-        return doAllocate(requestType, size, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
+        int returnVal = doAllocate(argument, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
+        printf("%d\n", returnVal);
+        return returnVal;
     } else if (requestType == DEALLOCATE) {
-        return doDeallocate(requestType, size, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
+        int deAllocResult = doDeallocate(argument, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
+
+#ifdef DEBUG
+        printf("Deallocation done: state of free: \n");
+        printBuddyArray(freeBlockArray, largestAllocSize+1);
+        printf("State of allocated:\n");
+        printBuddyArrayRow(*allocatedBlockList);
+        printf("\n");
+#endif
+
+        if (deAllocResult == TRUE) {
+            printf("ok\n");
+            return TRUE;
+        } else {
+            printf("failed\n");
+            return FALSE;
+        }
     } else {
         printf ("Incorrect requestType %d received\n", requestType);
         return FALSE;
@@ -335,13 +490,22 @@ int main(int argc, char** argv)
     for (int i = 0; i < totalRequests; i++) {
         int requestType, size, returnVal;
         scanf("%d %d", &requestType, &size);
-        returnVal = dispatchRequest(requestType, size, freeBlockArray, allocatedBlockList, smallestAllocSize, largestAllocSize);
+        returnVal = dispatchRequest(requestType, size, freeBlockArray, &allocatedBlockList, smallestAllocSize, largestAllocSize);
 #ifdef DEBUG
         printf("Return value: %d\n", returnVal);
 #else
-        printf("%d\n", returnVal);
+#endif
+
+#ifdef PRINTAFTERREQ
+        printf("\nFree block array\n");
+        printBuddyArray(freeBlockArray, largestAllocSize+1);
+        printf("\nAllocated list\n");
+        printBuddyArrayRow(allocatedBlockList);
 #endif
     }
+
+    // Print stats
+    printStats(freeBlockArray, largestAllocSize + 1, allocatedBlockList);
 
     return 0;
 }
