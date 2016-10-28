@@ -97,7 +97,7 @@ void printStats(block* freeBlockArray[], int numElements, block* allocatedBlockL
     block* allocatedIterator = allocatedBlockList;
     while (allocatedIterator != NULL) {
         inUse += POWEROF2[allocatedIterator->size];
-        fragmentation = POWEROF2[allocatedIterator->size] - allocatedIterator->sizeInUse;
+        fragmentation += POWEROF2[allocatedIterator->size] - allocatedIterator->sizeInUse;
         allocatedIterator = allocatedIterator->next;
     }
 
