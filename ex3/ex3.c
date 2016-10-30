@@ -88,6 +88,7 @@ void printBuddyArray(block* freeBlockArray[], int numElements) {
 
 }
 
+// At end of execution - print usage statistics
 void printStats(block* freeBlockArray[], int numElements, block* allocatedBlockList) {
     // Find the total memory in use
     int inUse = 0;
@@ -119,6 +120,45 @@ void printStats(block* freeBlockArray[], int numElements, block* allocatedBlockL
 // Checks if there is a free block at the level requested
 int isThereFreeBlockAt(int powerOfTwo, block* freeBlockArray[]) {
     return isValidBlock(freeBlockArray[powerOfTwo]);
+}
+
+// Based on ->address and assuming blockList is sorted, puts blockToInsert in the right place.
+void insertInSortedOrder(block** blockListPtr, block* blockToInsert){
+    block* blockList = *blockListPtr;
+    if (blockList == NULL) {
+        // If no head - make this block the head
+        *blockListPtr = blockToInsert;
+    } else if (blockList->address > blockToInsert->address) {
+        // OR if we're smaller than the block list head - make us the head
+        // point our ->next to the rest of the list
+        blockToInsert->next = blockList;
+        *blockListPtr = blockToInsert;
+    } else {
+        // If not - compare every group of 3 elements from here on out and
+        // insert in the middle of the 3 if the left element is less than
+        // the block to insert and the right element is more.
+        // There should be no equality situation since all addresses are
+        // unique.
+
+        // Left should never be null before right is null.
+        block* left = blockList;
+        block* right = left->next;
+
+        while (1) {
+
+            if (right == NULL || right->address > blockToInsert->address) {
+                // insert
+                left->next = blockToInsert;
+                blockToInsert->next = right;
+                return;
+            }
+
+            // Otherwise we can just move along the list
+            left = right;
+            right = right->next;
+        }
+
+    }
 }
 
 void insertAtBackOf(block** blockListPtr, block* blockToInsert) {
@@ -387,7 +427,8 @@ int doDeallocate(unsigned int startingAddress, block* freeBlockArray[], block** 
 
     // no buddy or shouldn't be finding buddy
     foundBlock->next = NULL;
-    insertAtBackOf(&freeBlockArray[foundBlock->size], foundBlock);
+    foundBlock->sizeInUse = 0;
+    insertInSortedOrder(&freeBlockArray[foundBlock->size], foundBlock);
     return TRUE;
 }
 
